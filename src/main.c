@@ -51,8 +51,8 @@ TIM_HandleTypeDef htim7;
 /* Private variables ---------------------------------------------------------*/
 volatile uint8_t countererror = 0;
 volatile uint8_t counter = 0;
-volatile uint8_t counteradc = 0;
-volatile uint8_t counterdac = 0;
+volatile uint16_t counteradc = 0;
+volatile uint16_t counterdac = 0;
 
 volatile uint16_t lutindex = 0;
 volatile uint16_t value_dac = 0;
@@ -127,38 +127,47 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC_Init();
+
   MX_DAC_Init();
+
   MX_TIM6_Init();
-  MX_TIM7_Init();
+  // something wrong above in Tim6
+
+ // MX_TIM7_Init(); -- to check
+
+
 
   /* USER CODE BEGIN 2 */
+  /*
 	if (HAL_DAC_Start(&hdac, DAC_CHANNEL_1) != HAL_OK) {
 		Error_Handler();
 	}
+  */
+
+
+	/*
 	if (HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) {
 		Error_Handler();
 	}
+	*/
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
+  HAL_GPIO_TogglePin(GPIOC, LD5_Pin);//Green
   while (1)
   {
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
+
 	  counter++;
-	  HAL_GPIO_TogglePin(GPIOC, LD3_Pin); //RED
-	  HAL_Delay(1000);
+	  //HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
+	 // HAL_Delay(1000);
 	  counter++;
-	  HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
-	  HAL_Delay(1000);
-	  counter++;
-	  HAL_GPIO_TogglePin(GPIOC, LD5_Pin); // Green
-	  HAL_Delay(1000);
-	  counter++;
-	  HAL_GPIO_TogglePin(GPIOC, LD6_Pin); // Blue
-	  HAL_Delay(1000);
+	 // HAL_GPIO_TogglePin(GPIOC, LD5_Pin); //Green
+	  //HAL_Delay(1000);
 
   }
   /* USER CODE END 3 */
@@ -175,9 +184,9 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI48_ON; // was RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
   RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -246,7 +255,7 @@ static void MX_ADC_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -329,13 +338,16 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 		ADC_rawold[index]=ADC_raw[index];
 		ADC_raw[index] = HAL_ADC_GetValue(hadc);
 		index++;
-		counteradc++;
+		//counteradc++;
 	}
 
 	if (__HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOS)) {
 		index = 0;
 		counteradc++;
-		//HAL_GPIO_TogglePin(GPIOC, LD3_Pin);
+		if (counteradc%10000==0)
+		{
+			HAL_GPIO_TogglePin(GPIOC, LD3_Pin); // RED
+		}
 		ADCConv1 = (int) 0.01*ADC_raw[0]+0.99*ADC_rawold[0];
 		ADCConv2 = (int) 0.01*ADC_raw[1]+0.99*ADC_rawold[1];
 		ADCConv3 = (int) 0.01*ADC_raw[2]+0.99*ADC_rawold[2];
@@ -368,10 +380,10 @@ static void MX_TIM6_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 100;
+  htim6.Init.Prescaler = 10;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim6.Init.Period = 10;
- // htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
     Error_Handler();
@@ -383,14 +395,18 @@ static void MX_TIM6_Init(void)
   {
     Error_Handler();
   }
+
   // Turn On TIM6 with Interupts
 
-  	if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
+
+  	HAL_NVIC_SetPriority(TIM6_IRQn, 3, 2);
+
+  	HAL_NVIC_EnableIRQ(TIM6_IRQn);
+
+
+ 	if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
   		Error_Handler();
   	}
-
-  	HAL_NVIC_SetPriority(TIM6_IRQn, 0, 1);
-  	HAL_NVIC_EnableIRQ(TIM6_IRQn);
 
 }
 
@@ -401,9 +417,9 @@ static void MX_TIM7_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 0;
+  htim7.Init.Prescaler = 10;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 0;
+  htim7.Init.Period = 10;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -416,6 +432,18 @@ static void MX_TIM7_Init(void)
   {
     Error_Handler();
   }
+
+  // Turn On TIM6 with Interupts
+
+
+    	HAL_NVIC_SetPriority(TIM7_IRQn, 3, 2);
+
+    	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+
+
+   	if (HAL_TIM_Base_Start_IT(&htim7) != HAL_OK) {
+    		Error_Handler();
+    	}
 
 }
 
@@ -513,8 +541,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	{
 
-		//HAL_GPIO_TogglePin(GPIOC, LD5_Pin);
 		counterdac++;
+		if (counterdac%1000==0)
+				{
+					HAL_GPIO_TogglePin(GPIOC, LD6_Pin); // Blue
+				}
+
 		/*
 		lutindex+=12;
 		if (lutindex>=1024)
@@ -565,7 +597,8 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler */
   /* User can add his own implementation to report the HAL error return state */
-	HAL_GPIO_WritePin(GPIOC, LD6_Pin,GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOC, LD5_Pin,GPIO_PIN_SET); // Green
+
   while(1) 
   {
 	  countererror++;
