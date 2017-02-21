@@ -138,18 +138,18 @@ int main(void)
 
 
   /* USER CODE BEGIN 2 */
-  /*
+
 	if (HAL_DAC_Start(&hdac, DAC_CHANNEL_1) != HAL_OK) {
 		Error_Handler();
 	}
-  */
 
 
-	/*
+
+
 	if (HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) {
 		Error_Handler();
 	}
-	*/
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -310,7 +310,7 @@ static void MX_DAC_Init(void)
     /**DAC channel OUT1 config 
     */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  sConfig.DAC_OutputBuffer =  DAC_OUTPUTBUFFER_DISABLE; // was DAC_OUTPUTBUFFER_ENABLE;
   if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -380,9 +380,9 @@ static void MX_TIM6_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 10;
+  htim6.Init.Prescaler = 100;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 10;
+  htim6.Init.Period = 50;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -574,12 +574,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		*/
 
 
-		lutindex+=1;
-				if (lutindex>=1024)
+		lutindex+=10;
+				if (lutindex>=256)
 				{
-					lutindex-=1024;
+					lutindex-=256;
 				}
-		value_dac	=Sine1024_12bit[lutindex];
+		value_dac	=Sine256_12bit[lutindex];
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, value_dac);
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, value_dac);
 	}
