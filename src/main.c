@@ -89,6 +89,8 @@ volatile uint16_t accumulator3step = 0;
 volatile uint32_t accumulator3r=5000000;
 volatile double VoltValue3 = 0.0;
 
+int useLeds = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -126,7 +128,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC_Init();
+  //MX_ADC_Init();
 
   MX_DAC_Init();
 
@@ -154,8 +156,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
-  HAL_GPIO_TogglePin(GPIOC, LD5_Pin);//Green
+	if (useLeds)
+	{
+		HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
+		HAL_GPIO_TogglePin(GPIOC, LD5_Pin);//Green
+	}
   while (1)
   {
   /* USER CODE END WHILE */
@@ -163,7 +168,7 @@ int main(void)
   /* USER CODE BEGIN 3 */
 
 	  counter++;
-	  //HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
+	  //HAL_GPIO_Pin(GPIOC,LD4_Pin); //Orange
 	 // HAL_Delay(1000);
 	  counter++;
 	 // HAL_GPIO_TogglePin(GPIOC, LD5_Pin); //Green
@@ -176,6 +181,8 @@ int main(void)
 
 /** System Clock Configuration
 */
+
+
 void SystemClock_Config(void)
 {
 
@@ -184,15 +191,11 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSI14State = RCC_HSI48_ON; // was RCC_HSI14_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSI14CalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
-  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -202,7 +205,7 @@ void SystemClock_Config(void)
     */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
@@ -346,7 +349,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 		counteradc++;
 		if (counteradc%10000==0)
 		{
-			HAL_GPIO_TogglePin(GPIOC, LD3_Pin); // RED
+			if (useLeds)
+			{
+				HAL_GPIO_TogglePin(GPIOC, LD3_Pin); // RED
+			}
 		}
 		ADCConv1 = (int) 0.01*ADC_raw[0]+0.99*ADC_rawold[0];
 		ADCConv2 = (int) 0.01*ADC_raw[1]+0.99*ADC_rawold[1];
@@ -380,9 +386,9 @@ static void MX_TIM6_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig;
 
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 100;
+  htim6.Init.Prescaler = 50;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 50;
+  htim6.Init.Period = 10;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -399,7 +405,7 @@ static void MX_TIM6_Init(void)
   // Turn On TIM6 with Interupts
 
 
-  	HAL_NVIC_SetPriority(TIM6_IRQn, 3, 2);
+  	HAL_NVIC_SetPriority(TIM6_IRQn, 0, 0);
 
   	HAL_NVIC_EnableIRQ(TIM6_IRQn);
 
@@ -575,11 +581,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 
 		lutindex+=10;
-				if (lutindex>=256)
+				if (lutindex>=1024)
 				{
-					lutindex-=256;
+					lutindex-=1024;
 				}
-		value_dac	=Sine256_12bit[lutindex];
+		value_dac	=Sine1024_12bit[lutindex];
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, value_dac);
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, value_dac);
 	}
