@@ -54,8 +54,16 @@ volatile uint8_t counter = 0;
 volatile uint16_t counteradc = 0;
 volatile uint16_t counterdac = 0;
 
+volatile uint16_t lutindex1 = 0;
+volatile uint16_t lutindex2 = 0;
+volatile uint16_t lutindex3 = 0;
 volatile uint16_t lutindex = 0;
+
+volatile uint16_t value1_dac = 0;
+volatile uint16_t value2_dac = 0;
+volatile uint16_t value3_dac = 0;
 volatile uint16_t value_dac = 0;
+
 volatile uint16_t ADC_rawold[3];
 volatile uint16_t ADC_raw[3];
 volatile uint16_t ADCConv1, ADCConv2, ADCConv3;
@@ -90,6 +98,8 @@ volatile uint32_t accumulator3r=5000000;
 volatile double VoltValue3 = 0.0;
 
 int useLeds = 0;
+int useDAC  = 1;
+int useADC =  0;
 
 /* USER CODE END PV */
 
@@ -100,7 +110,7 @@ static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 static void MX_DAC_Init(void);
 static void MX_TIM6_Init(void);
-static void MX_TIM7_Init(void);
+static void MX_TIM15_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -128,15 +138,22 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  //MX_ADC_Init();
 
-  MX_DAC_Init();
+  if (useDAC)
+  {
+	  MX_DAC_Init();
+
+  }
 
   MX_TIM6_Init();
+
+  if (useADC)
+  {
+	  MX_ADC_Init();
+  }
   // something wrong above in Tim6
 
- // MX_TIM7_Init(); -- to check
-
+  MX_TIM15_Init();
 
 
   /* USER CODE BEGIN 2 */
@@ -161,6 +178,9 @@ int main(void)
 		HAL_GPIO_TogglePin(GPIOC,LD4_Pin); //Orange
 		HAL_GPIO_TogglePin(GPIOC, LD5_Pin);//Green
 	}
+
+	SystemCoreClockUpdate();
+
   while (1)
   {
   /* USER CODE END WHILE */
@@ -247,6 +267,11 @@ static void MX_ADC_Init(void)
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  //hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T15_TRGO;
+  //hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIG_EDGE_FALLING;
+
+
+
   hadc.Init.DMAContinuousRequests = DISABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   if (HAL_ADC_Init(&hadc) != HAL_OK)
@@ -258,7 +283,7 @@ static void MX_ADC_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -313,7 +338,8 @@ static void MX_DAC_Init(void)
     /**DAC channel OUT1 config 
     */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer =  DAC_OUTPUTBUFFER_DISABLE; // was DAC_OUTPUTBUFFER_ENABLE;
+  sConfig.DAC_OutputBuffer =  DAC_OUTPUTBUFFER_ENABLE; // was DAC_OUTPUTBUFFER_ENABLE;
+  sConfig.DAC_OutputBuffer =  DAC_OUTPUTBUFFER_DISABLE;
   if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -388,7 +414,7 @@ static void MX_TIM6_Init(void)
   htim6.Instance = TIM6;
   htim6.Init.Prescaler = 50;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 10;
+  htim6.Init.Period = 50;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -417,15 +443,15 @@ static void MX_TIM6_Init(void)
 }
 
 /* TIM7 init function */
-static void MX_TIM7_Init(void)
+static void MX_TIM15_Init(void)
 {
 
   TIM_MasterConfigTypeDef sMasterConfig;
 
-  htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 10;
+  htim7.Instance = TIM15;
+  htim7.Init.Prescaler = 1000;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 10;
+  htim7.Init.Period = 100;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -439,18 +465,18 @@ static void MX_TIM7_Init(void)
     Error_Handler();
   }
 
-  // Turn On TIM6 with Interupts
+  // Turn On TIM7 with Interupts
 
 
-    	HAL_NVIC_SetPriority(TIM7_IRQn, 3, 2);
+    	HAL_NVIC_SetPriority(TIM15_IRQn, 1, 0);
 
-    	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+    	HAL_NVIC_EnableIRQ(TIM15_IRQn);
 
-
+/*
    	if (HAL_TIM_Base_Start_IT(&htim7) != HAL_OK) {
     		Error_Handler();
     	}
-
+*/
 }
 
 /** Configure pins as 
@@ -550,7 +576,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		counterdac++;
 		if (counterdac%1000==0)
 				{
-					HAL_GPIO_TogglePin(GPIOC, LD6_Pin); // Blue
+					if (useLeds)
+					{
+						HAL_GPIO_TogglePin(GPIOC, LD6_Pin); // Blue
+					}
 				}
 
 		/*
@@ -580,12 +609,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		*/
 
 
-		lutindex+=10;
-				if (lutindex>=1024)
+		lutindex1+=30;
+				if (lutindex1>=1024)
 				{
-					lutindex-=1024;
+					lutindex1-=1024;
 				}
-		value_dac	=Sine1024_12bit[lutindex];
+		value1_dac	=Sine1024_12bit[lutindex1];
+
+		lutindex2+=10;
+				if (lutindex2>=1024)
+				{
+					lutindex2-=1024;
+				}
+		value2_dac	=Sine1024_12bit[lutindex2];
+
+
+		lutindex3+=60;
+				if (lutindex3>=1024)
+				{
+					lutindex3-=1024;
+				}
+		value3_dac	=Sine1024_12bit[lutindex3];
+
+		value_dac	=(uint16_t) (value1_dac+value2_dac+value3_dac)/3.0;
+		//value_dac	=value1_dac;
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, value_dac);
 		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, value_dac);
 	}
